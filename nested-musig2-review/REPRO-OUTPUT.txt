@@ -1,0 +1,232 @@
+# REPRO-OUTPUT for nested-musig2-bip-review, generated 2026-10-09T08:05:16Z
+# PR head b3b0aa240ee4ee9d5ccc2de480cfe74a3018b02d; upstream bitcoin/bips 927b6de9915c9262615a6399de51b200f81e5aa4
+
+## fetch
+fetched pr/bip-nested-musig2.mediawiki (88338 bytes)
+fetched pr/bip-nested-musig2/reference.py (17885 bytes)
+fetched pr/bip-nested-musig2/tests.sh (168 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/test.py (15313 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/key_agg_vectors.json (3018 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/key_sort_vectors.json (992 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/nonce_agg_vectors.json (2627 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/nonce_gen_vectors.json (3533 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/sig_agg_vectors.json (6460 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/sign_verify_vectors.json (7887 bytes)
+fetched pr/bip-nested-musig2/tests/bip327-tests/vectors/tweak_vectors.json (4032 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/nested_examples.py (822 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/nested_musig2_exec.py (3153 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/random_tree_tests.py (1913 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/test.py (21649 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/tree.py (4039 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/vectors/key_agg_vectors.json (20629 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/vectors/nonce_agg_vectors.json (30315 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/vectors/sig_agg_vectors.json (18532 bytes)
+fetched pr/bip-nested-musig2/tests/multi-level-tests/vectors/sign_verify_vectors.json (32477 bytes)
+fetched upstream/bip-0327/reference.py (34695 bytes)
+fetched upstream/bip-0327/tests.py (14 bytes)
+fetched upstream/bip-0327/vectors/key_agg_vectors.json (3018 bytes)
+fetched upstream/bip-0327/vectors/key_sort_vectors.json (992 bytes)
+fetched upstream/bip-0327/vectors/nonce_agg_vectors.json (2627 bytes)
+fetched upstream/bip-0327/vectors/nonce_gen_vectors.json (3533 bytes)
+fetched upstream/bip-0327/vectors/sig_agg_vectors.json (5978 bytes)
+fetched upstream/bip-0327/vectors/sign_verify_vectors.json (8857 bytes)
+fetched upstream/bip-0327/vectors/tweak_vectors.json (4032 bytes)
+
+## upstream BIP327 vector files vs the PR's bip327-tests copies
+key_agg_vectors.json: identical
+key_sort_vectors.json: identical
+nonce_agg_vectors.json: identical
+nonce_gen_vectors.json: identical
+sig_agg_vectors.json: DIFFERS (5 changed lines)
+sign_verify_vectors.json: DIFFERS (38 changed lines)
+tweak_vectors.json: DIFFERS (10 changed lines)
+
+## the PR's own test suite (tests.sh order)
+tests/bip327-tests/test.py: exit=0 elapsed=69s
+tests/multi-level-tests/test.py: exit=0 elapsed=101s
+tests/multi-level-tests/random_tree_tests.py: exit=0 elapsed=54s
+
+## vector coverage summary
+===== key_agg_vectors.json top-level keys: ['pubkeys', 'valid_test_cases', 'error_test_cases']
+  pubkeys: 18 entries, byte lengths {33: 14, 0: 1, 32: 2, 34: 1}
+  -- valid_test_cases: 14 cases
+    minimal_nested: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= 
+    balanced: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=None signer= 
+    three_levels: tree=G(H(A,B),C),D tweaks=0 is_xonly=[] msg_index=None signer= 
+    unequal_depths: tree=G(H(A,B),C),J(D,E),F tweaks=0 is_xonly=[] msg_index=None signer= 
+    unary_groups: tree=G(H(A)),B tweaks=0 is_xonly=[] msg_index=None signer= 
+    wide_group: tree=G(A,B,C,D),E tweaks=0 is_xonly=[] msg_index=None signer= 
+    duplicate_siblings: tree=G(A1,A2,B),C tweaks=0 is_xonly=[] msg_index=None signer= DUP-KEYS 
+    all_duplicate_group: tree=G(A1,A2,A3),B tweaks=0 is_xonly=[] msg_index=None signer= DUP-KEYS 
+    duplicate_across_levels: tree=G(A1,B),A2 tweaks=0 is_xonly=[] msg_index=None signer= DUP-KEYS 
+    plain_tweak: tree=G(A,B),C tweaks=1 is_xonly=[False] msg_index=None signer= 
+    xonly_tweak: tree=G(A,B),C tweaks=1 is_xonly=[True] msg_index=None signer= 
+    mixed_tweaks: tree=G(H(A,B),C),D tweaks=2 is_xonly=[False, True] msg_index=None signer= 
+    zero_tweaks: tree=G(A,B),C tweaks=2 is_xonly=[False, True] msg_index=None signer= 
+    max_valid_tweak: tree=G(A,B),C tweaks=1 is_xonly=[False] msg_index=None signer= 
+  -- error_test_cases: 18 cases
+    bip327_noncurve: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    bip327_field_overflow: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    bip327_wrong_prefix: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    empty: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    short: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    long: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    infinity: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    xonly: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    field_boundary: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=None signer= err=key_agg/invalid_contribution/pubkey 
+    tweak_n: tree=G(A,B),C tweaks=1 is_xonly=[False] msg_index=None signer= err=apply_tweaks/value/The tweak must be less than n. 
+    tweak_max: tree=G(A,B),C tweaks=1 is_xonly=[True] msg_index=None signer= err=apply_tweaks/value/The tweak must be less than n. 
+    tweak_short: tree=G(A,B),C tweaks=1 is_xonly=[False] msg_index=None signer= err=apply_tweaks/value/The tweak must be a 32-byte array. 
+    tweak_long: tree=G(A,B),C tweaks=1 is_xonly=[True] msg_index=None signer= err=apply_tweaks/value/The tweak must be a 32-byte array. 
+    tweak_empty: tree=G(A,B),C tweaks=1 is_xonly=[False] msg_index=None signer= err=apply_tweaks/value/The tweak must be a 32-byte array. 
+    missing_mode: tree=G(A,B),C tweaks=1 is_xonly=[] msg_index=None signer= err=apply_tweaks/value/The `tweaks` and `is_xonly` arrays must have the same length. 
+    extra_mode: tree=G(A,B),C tweaks=0 is_xonly=[False] msg_index=None signer= err=apply_tweaks/value/The `tweaks` and `is_xonly` arrays must have the same length. 
+    tweak_to_infinity_False: tree=G(A) tweaks=1 is_xonly=[False] msg_index=None signer= err=apply_tweaks/value/The result of tweaking cannot be infinity. 
+    tweak_to_infinity_True: tree=G(A) tweaks=1 is_xonly=[True] msg_index=None signer= err=apply_tweaks/value/The result of tweaking cannot be infinity. 
+===== nonce_agg_vectors.json top-level keys: ['pubkeys', 'pubnonces', 'valid_test_cases', 'error_test_cases']
+  pubkeys: 18 entries, byte lengths {33: 14, 0: 1, 32: 2, 34: 1}
+  pubnonces: 24 entries, byte lengths {66: 21, 0: 1, 65: 1, 67: 1}
+  -- valid_test_cases: 14 cases
+    minimal_nested: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= 
+    balanced: tree=G(A,B),H(C,D) tweaks=0 is_xonly=None msg_index=None signer= 
+    three_levels: tree=G(H(A,B),C),D tweaks=0 is_xonly=None msg_index=None signer= 
+    unequal_depths: tree=G(H(A,B),C),J(D,E),F tweaks=0 is_xonly=None msg_index=None signer= 
+    unary_groups: tree=G(H(A)),B tweaks=0 is_xonly=None msg_index=None signer= 
+    wide_group: tree=G(A,B,C,D),E tweaks=0 is_xonly=None msg_index=None signer= 
+    duplicate_siblings: tree=G(A1,A2,B),C tweaks=0 is_xonly=None msg_index=None signer= DUP-KEYS 
+    all_duplicate_group: tree=G(A1,A2,A3),B tweaks=0 is_xonly=None msg_index=None signer= DUP-KEYS 
+    duplicate_across_levels: tree=G(A1,B),A2 tweaks=0 is_xonly=None msg_index=None signer= DUP-KEYS 
+    different_subgroup_key: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= 
+    different_leaf_nonces: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= 
+    root_infinity_0: tree=A,B tweaks=0 is_xonly=None msg_index=None signer= 
+    root_infinity_1: tree=A,B tweaks=0 is_xonly=None msg_index=None signer= 
+    root_infinity_2: tree=A,B tweaks=0 is_xonly=None msg_index=None signer= 
+  -- error_test_cases: 15 cases
+    bip327_4: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    bip327_5: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    bip327_6: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    empty: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    short: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    long: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    first_infinity: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    second_infinity: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    second_prefix: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    first_overflow: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    first_noncurve: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    second_field_boundary: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg/invalid_contribution/pubnonce 
+    cancellation_0: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg_ext/invalid_contribution/aggnonce 
+    cancellation_1: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg_ext/invalid_contribution/aggnonce 
+    cancellation_2: tree=G(A,B),C tweaks=0 is_xonly=None msg_index=None signer= err=nonce_agg_ext/invalid_contribution/aggnonce 
+===== sign_verify_vectors.json top-level keys: ['sk', 'pubkeys', 'pubnonces', 'secnonces', 'msgs', 'valid_test_cases', 'aggnonces', 'psigs', 'sign_error_test_cases', 'verify_fail_test_cases', 'verify_error_test_cases']
+  pubkeys: 18 entries, byte lengths {33: 14, 0: 1, 32: 2, 34: 1}
+  pubnonces: 24 entries, byte lengths {66: 21, 0: 1, 65: 1, 67: 1}
+  secnonces: 14 entries, byte lengths {97: 14}
+  msgs: 2 entries, byte lengths {32: 2}
+  aggnonces: 5 entries, byte lengths {66: 5}
+  psigs: 3 entries, byte lengths {32: 3}
+  -- valid_test_cases: 14 cases
+    minimal_nested: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A 
+    balanced: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A 
+    three_levels: tree=G(H(A,B),C),D tweaks=0 is_xonly=[] msg_index=0 signer=root/G/H/A 
+    unequal_depths: tree=G(H(A,B),C),J(D,E),F tweaks=0 is_xonly=[] msg_index=0 signer=root/G/H/A 
+    unary_groups: tree=G(H(A)),B tweaks=0 is_xonly=[] msg_index=0 signer=root/G/H/A 
+    wide_group: tree=G(A,B,C,D),E tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A 
+    duplicate_siblings: tree=G(A1,A2,B),C tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A2 DUP-KEYS 
+    all_duplicate_group: tree=G(A1,A2,A3),B tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A3 DUP-KEYS 
+    duplicate_nested: tree=G(A1,B),A2 tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A1 DUP-KEYS 
+    duplicate_direct: tree=G(A1,B),A2 tweaks=0 is_xonly=[] msg_index=0 signer=root/A2 DUP-KEYS 
+    plain_tweak: tree=G(A,B),C tweaks=1 is_xonly=[False] msg_index=0 signer=root/G/A 
+    xonly_tweak: tree=G(A,B),C tweaks=1 is_xonly=[True] msg_index=0 signer=root/G/A 
+    mixed_tweaks: tree=G(H(A,B),C),D tweaks=2 is_xonly=[False, True] msg_index=0 signer=root/G/H/A 
+    different_message: tree=G(A,B),C tweaks=0 is_xonly=[] msg_index=1 signer=root/G/A 
+  -- sign_error_test_cases: 10 cases
+    wrong_nonce_tag: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/aggnonce 
+    nonce_noncurve: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/aggnonce 
+    nonce_field_overflow: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/aggnonce 
+    invalid_subgroup_nonce: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/aggnonce 
+    invalid_cosigner_key: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/pubkey 
+    consumed_nonce: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/value/first secnonce value is out of range. 
+    first_nonce_n: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/value/first secnonce value is out of range. 
+    second_nonce_zero: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/value/second secnonce value is out of range. 
+    second_nonce_n: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/value/second secnonce value is out of range. 
+    nonce_key_mismatch: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/value/Public key does not match nonce_gen argument 
+  -- verify_fail_test_cases: 5 cases
+    negated_signature: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A 
+    signature_n: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A 
+    wrong_signer: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/B 
+    wrong_message: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=1 signer=root/G/A 
+    wrong_tweak: tree=G(A,B),H(C,D) tweaks=1 is_xonly=[False] msg_index=0 signer=root/G/A 
+  -- verify_error_test_cases: 2 cases
+    invalid_subgroup_nonce: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/aggnonce 
+    invalid_cosigner_key: tree=G(A,B),H(C,D) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A err=/invalid_contribution/pubkey 
+===== sig_agg_vectors.json top-level keys: ['pubkeys', 'pubnonces', 'psigs', 'msgs', 'valid_test_cases', 'error_test_cases', 'verify_fail_test_cases']
+  pubkeys: 18 entries, byte lengths {33: 14, 0: 1, 32: 2, 34: 1}
+  pubnonces: 24 entries, byte lengths {66: 21, 0: 1, 65: 1, 67: 1}
+  psigs: 24 entries, byte lengths {32: 21, 0: 1, 31: 1, 33: 1}
+  msgs: 1 entries, byte lengths {32: 1}
+  -- valid_test_cases: 4 cases
+    balanced: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS 
+    plain_tweak: tree=G(A1,A2),H(A3,A4) tweaks=1 is_xonly=[False] msg_index=0 signer= DUP-KEYS 
+    xonly_tweak: tree=G(A1,A2),H(A3,A4) tweaks=1 is_xonly=[True] msg_index=0 signer= DUP-KEYS 
+    mixed_tweaks: tree=G(A1,A2),H(A3,A4) tweaks=2 is_xonly=[False, True] msg_index=0 signer= DUP-KEYS 
+  -- error_test_cases: 6 cases
+    scalar_n: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS err=/invalid_contribution/psig 
+    scalar_max: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS err=/invalid_contribution/psig 
+    empty: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS err=/invalid_contribution/psig 
+    short: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS err=/invalid_contribution/psig 
+    long: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS err=/invalid_contribution/psig 
+    invalid_subgroup_scalar: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer= DUP-KEYS err=/invalid_contribution/psig 
+  -- verify_fail_test_cases: 1 cases
+    incorrect_partial_signature: tree=G(A1,A2),H(A3,A4) tweaks=0 is_xonly=[] msg_index=0 signer=root/G/A2 DUP-KEYS 
+
+## cross-check against upstream BIP327 (repro/crosscheck.py)
+[PASS] L1/upstream-sign on sorted list reproduces PR vector sign_verify[0]  -- upstream(sorted)=80999B2647215418.. PR=80999B2647215418.. original-BIP327(unsorted order [0, 1, 2])=012ABBCB52B3016A..
+[PASS] L1/upstream-verify of PR vector sign_verify[0]
+[PASS] L1/upstream-sign on sorted list reproduces PR vector sign_verify[1]  -- upstream(sorted)=80999B2647215418.. PR=80999B2647215418.. original-BIP327(unsorted order [1, 0, 2])=9FF2F7AAA856150C..
+[PASS] L1/upstream-verify of PR vector sign_verify[1]
+[PASS] L1/upstream-sign on sorted list reproduces PR vector sign_verify[2]  -- upstream(sorted)=80999B2647215418.. PR=80999B2647215418.. original-BIP327(unsorted order [1, 2, 0])=FA23C359F6FAC4E7..
+[PASS] L1/upstream-verify of PR vector sign_verify[2]
+[PASS] L1/upstream-sign on sorted list reproduces PR vector sign_verify[3]  -- upstream(sorted)=E7F81547D86D071C.. PR=E7F81547D86D071C.. original-BIP327(unsorted order [0, 1])=AE386064B2610540..
+[PASS] L1/upstream-verify of PR vector sign_verify[3]
+[PASS] L1/upstream-sign on sorted list reproduces PR vector sign_verify[4]  -- upstream(sorted)=FF5E35F3DC718306.. PR=FF5E35F3DC718306.. original-BIP327(unsorted order [0, 1, 2])=D7D63FFD644CCDA4..
+[PASS] L1/upstream-verify of PR vector sign_verify[4]
+[PASS] L1/upstream-sign on sorted list reproduces PR vector sign_verify[5]  -- upstream(sorted)=AFCA31AC068CEFED.. PR=AFCA31AC068CEFED.. original-BIP327(unsorted order [0, 1, 2])=E184351828DA5094..
+[PASS] L1/upstream-verify of PR vector sign_verify[5]
+[PASS] L1/upstream-sign on sorted list reproduces PR vector tweak[0]  -- upstream(sorted)=EEA101D69EF7DE45.. PR=EEA101D69EF7DE45.. original-BIP327=E28A5C66E61E178C..
+[PASS] L1/upstream-sign on sorted list reproduces PR vector tweak[1]  -- upstream(sorted)=FD93B778B455D46C.. PR=FD93B778B455D46C.. original-BIP327=38B0767798252F21..
+[PASS] L1/upstream-sign on sorted list reproduces PR vector tweak[2]  -- upstream(sorted)=6BCC177E2AFF9271.. PR=6BCC177E2AFF9271.. original-BIP327=408A0A21C4A0F5DA..
+[PASS] L1/upstream-sign on sorted list reproduces PR vector tweak[3]  -- upstream(sorted)=5B0246D015B6B0B5.. PR=5B0246D015B6B0B5.. original-BIP327=45ABD206E61E3DF2..
+[PASS] L1/upstream-sign on sorted list reproduces PR vector tweak[4]  -- upstream(sorted)=C306940ECEE4740B.. PR=C306940ECEE4740B.. original-BIP327=B255FDCAC27B40C7..
+[PASS] L1/PR reference cannot represent BIP327's unsorted key order (expected: differs)  -- nm(sorted)=80999B2647215418.. BIP327 vector for order [1, 0, 2]=9FF2F7AAA856150C..
+[PASS] root/upstream PartialSigVerify accepts subgroup G as a plain participant (balanced)
+[PASS] root/upstream PartialSigVerify accepts subgroup H as a plain participant (balanced)
+[PASS] root/upstream PartialSigAgg reproduces PR final signature (balanced)  -- E81F300DB2D5BBFB.. vs E81F300DB2D5BBFB..
+[PASS] root/upstream BIP340 verify (balanced)
+[PASS] root/upstream PartialSigVerify accepts subgroup G as a plain participant (plain_tweak)
+[PASS] root/upstream PartialSigVerify accepts subgroup H as a plain participant (plain_tweak)
+[PASS] root/upstream PartialSigAgg reproduces PR final signature (plain_tweak)  -- 0EE002355CF61B37.. vs 0EE002355CF61B37..
+[PASS] root/upstream BIP340 verify (plain_tweak)
+[PASS] root/upstream PartialSigVerify accepts subgroup G as a plain participant (xonly_tweak)
+[PASS] root/upstream PartialSigVerify accepts subgroup H as a plain participant (xonly_tweak)
+[PASS] root/upstream PartialSigAgg reproduces PR final signature (xonly_tweak)  -- 0EE002355CF61B37.. vs 0EE002355CF61B37..
+[PASS] root/upstream BIP340 verify (xonly_tweak)
+[PASS] root/upstream PartialSigVerify accepts subgroup G as a plain participant (mixed_tweaks)
+[PASS] root/upstream PartialSigVerify accepts subgroup H as a plain participant (mixed_tweaks)
+[PASS] root/upstream PartialSigAgg reproduces PR final signature (mixed_tweaks)  -- 769D9782213A7A1F.. vs 769D9782213A7A1F..
+[PASS] root/upstream BIP340 verify (mixed_tweaks)
+[PASS] root-leaf/upstream BIP327 Sign reproduces PR nested vector (duplicate_direct, signer root/A2)
+
+--- reference vs. spec text ---
+[PASS] 3a/intermediate b identical for Q and -Q (x-only hashing, as in spec body)
+[PASS] 3a/Rationale formula hash(pk_agg33 || aggnonce) gives a DIFFERENT b than the body/reference  -- body/ref b=3b2ae7bdda93ece560e1f57e78e715d5fc05d61ebe5b2c8ee..  rationale b=4c8fde8034d6e27590a2721bdaa25c58afcb34357455
+[PASS] 3b/Sign raised on malformed nonce_path
+[PASS] 3b/secnonce scalars still intact after the failed Sign (spec: MUST be consumed first)
+[PASS] 3b/the same secnonce is then accepted by a second Sign call
+[PASS] 3c/partial_sig_verify accepts 33-byte psig (spec: return failure if len != 32)
+[PASS] 3c/partial_sig_agg rejects the same 33-byte psig (inconsistent with verify)
+[PASS] 3d/Sign accepts a 33-byte sk with leading zero and produces the vector psig
+[PASS] 3e/reference schnorr_verify rejects non-32-byte messages (spec: MUST NOT)
+[PASS] 3e/nested vectors only ever use 32-byte messages  -- lengths=[32]
+[PASS] 3f/reference sign returns a 2-tuple, not the 32-byte psig the spec describes
+
+46 checks passed, 0 failed
