@@ -232,7 +232,7 @@ def test_sign_verify():
         assert 0 < k1 < ref.n and 0 < k2 < ref.n, f'{case_id}: invalid nonce scalars'
         pubnonce = ref.cbytes(ref.point_mul(ref.G, k1)) + ref.cbytes(ref.point_mul(ref.G, k2))
         assert pubnonce == signer.out, f'{case_id}: secret/public nonce mismatch'
-        _, psig = ref.sign(secnonce, sk, ctx)
+        psig = ref.sign(secnonce, sk, ctx)
         expected = bytes.fromhex(case['expected'])
         assert psig == expected, (
             f'{case_id}: {signer_path}: partial signature mismatch\n'
@@ -271,8 +271,10 @@ def test_sig_agg():
                         ctx.nonce_path + [node.out_internal],
                         ctx.pk_tree + [[sibling.pk for j, sibling in enumerate(node.children) if i != j]],
                         tweaks, case['is_xonly'], msg)
-            first_leaf = next(path for path, node in nodes.items() if node.is_leaf())
-            rx = ref.xbytes(ref.get_session_values(contexts[first_leaf], nodes[first_leaf].pk)[4])
+            root = nodes['root']
+            # The root aggregator runs the unchanged BIP327 session over L_0 and out_0.
+            root_ctx = ref.RootSessionContext(root.out_internal, ref.key_sort([child.pk for child in root.children]),
+                                              tweaks, case['is_xonly'], msg)
             psigs = {path: bytes.fromhex(vectors['psigs'][index]) for path, index in case['psig_indices'].items()}
             if group == 'error_test_cases':
                 error = case['error']
@@ -282,9 +284,9 @@ def test_sig_agg():
                 inputs = [psigs[p] for p in children]
                 try:
                     if node.is_root:
-                        ref.partial_sig_agg(inputs, rx, contexts[path], node.keyagg_ctx)
+                        ref.partial_sig_agg_root(inputs, root_ctx)
                     else:
-                        ref.partial_sig_agg(inputs, rx)
+                        ref.partial_sig_agg_intermediate(inputs)
                 except ref.InvalidContributionError as actual:
                     assert error['type'] == 'invalid_contribution'
                     assert (actual.signer, actual.contrib) == (error['signer'], error['contrib']), case['id']
@@ -307,15 +309,13 @@ def test_sig_agg():
                     node.out_ = psigs[path]
                     continue
                 inputs = [child.out_ for child in node.children]
-                node.out_ = ref.partial_sig_agg(inputs, rx, contexts[path], node.keyagg_ctx) if node.is_root else ref.partial_sig_agg(inputs, rx)
+                node.out_ = ref.partial_sig_agg_root(inputs, root_ctx) if node.is_root else ref.partial_sig_agg_intermediate(inputs)
                 if group == 'valid_test_cases':
-                    actual = rx + node.out_ if node.is_root else node.out_
-                    assert actual == bytes.fromhex(case['expected'][path]), f'{case["id"]}: {path}: incorrect aggregation'
+                    assert node.out_ == bytes.fromhex(case['expected'][path]), f'{case["id"]}: {path}: incorrect aggregation'
                     if not node.is_root:
                         assert node.out_ == psigs[path], f'{case["id"]}: {path}: inconsistent pooled subgroup signature'
-            root = nodes['root']
             key = ref.get_xonly_pk(ref.apply_tweaks(root.keyagg_ctx, tweaks, case['is_xonly']))
-            valid = ref.schnorr_verify(msg, key, rx + root.out_)
+            valid = ref.schnorr_verify(msg, key, root.out_)
             if group == 'valid_test_cases':
                 assert valid is True, f'{case["id"]}: valid aggregate signature failed BIP340 verification'
             else:
