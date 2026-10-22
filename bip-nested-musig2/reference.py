@@ -318,16 +318,24 @@ def nonce_agg(pubnonces: List[bytes]) -> bytes:
 def agg_nonce_coeff_hash(aggnonce: bytes, aggkey: Point) -> int:
     return int_from_bytes(tagged_hash('NestedMuSig/aggnoncecoef', aggnonce + xbytes(aggkey))) % n
 
-def nonce_agg_ext(nonce_internal: bytes, pk_internal: Point) -> bytes:
+def nonce_agg_ext(aggnonce: bytes, pk_agg: PlainPk) -> bytes:
+    """Return a subgroup's external nonce using the draft's 33-byte key API.
+
+    The binding factor itself retains the author's nonce-first X-only hash:
+    H(aggnonce || xbytes(cpoint(pk_agg))).
+    """
+    if len(pk_agg) != 33:
+        raise ValueError('The aggregate public key must be a 33-byte array.')
+    Q = cpoint(pk_agg)
     try:
-        if len(nonce_internal) != 66:
+        if len(aggnonce) != 66:
             raise ValueError('The aggregate nonce must be a 66-byte array.')
-        R_1_ = cpoint_ext(nonce_internal[0:33])
-        R_2_ = cpoint_ext(nonce_internal[33:66])
+        R_1_ = cpoint_ext(aggnonce[0:33])
+        R_2_ = cpoint_ext(aggnonce[33:66])
     except ValueError:
         # Nonce aggregator sent invalid nonces
         raise InvalidContributionError(None, "aggnonce")
-    b = agg_nonce_coeff_hash(nonce_internal, pk_internal)
+    b = agg_nonce_coeff_hash(aggnonce, Q)
     R_1 = R_1_
     R_2 = point_mul(R_2_, b)
     if is_infinite(R_1) or is_infinite(R_2):
