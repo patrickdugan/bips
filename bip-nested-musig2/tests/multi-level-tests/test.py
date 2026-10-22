@@ -241,6 +241,32 @@ def test_sign_verify():
         )
         assert ref.partial_sig_verify(expected, signer.out, signer.pk, ctx), f'{case_id}: partial verification failed'
 
+        # A malformed public session cannot leave secret nonce scalars reusable.
+        # In particular, GetSessionValues must run *after* Sign consumes them.
+        failed_nonce = bytearray.fromhex(vectors['secnonces'][secnonce_index])
+        malformed_ctx = ref.SessionContext(
+            ctx.nonce_path[:-1], ctx.pk_tree, ctx.tweaks, ctx.is_xonly, ctx.msg)
+        try:
+            ref.sign(failed_nonce, sk, malformed_ctx)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f'{case_id}: malformed session accepted')
+        assert failed_nonce[:64] == bytes(64), f'{case_id}: failed Sign retained nonce scalars'
+        assert failed_nonce[64:] == signer.pk, f'{case_id}: secret nonce public-key binding changed'
+        try:
+            ref.sign(failed_nonce, sk, ctx)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f'{case_id}: failed Sign allowed secret nonce reuse')
+
+        # The reference must reject malformed lengths even when the leading
+        # zero would leave the same integer scalar after parsing.
+        assert not ref.partial_sig_verify(b'\\x00' + expected, signer.out, signer.pk, ctx)
+        assert not ref.partial_sig_verify(expected, signer.out + b'\\x00', signer.pk, ctx)
+        assert not ref.partial_sig_verify(expected, signer.out, b'\\x00' + signer.pk, ctx)
+
 
 def test_sig_agg():
     vectors = json.loads((Path(__file__).parent / 'vectors' / 'sig_agg_vectors.json').read_text())
