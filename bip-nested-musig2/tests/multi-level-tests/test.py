@@ -385,6 +385,23 @@ def test_session_nonce_validation():
         with patch.object(ref, 'agg_nonce_coeff_hash', side_effect=lambda nonce, key: 0 if nonce == marked else 1):
             check_failure(nonces, level)
 
+    # The author chose the BIP327-style X-only nonce-binding input. Keys with
+    # opposite parity must therefore produce the same intermediate factor.
+    positive_key = ref.PlainPk(ref.cbytes(ref.G))
+    negative_key = ref.PlainPk(ref.cbytes(ref.point_negate(ref.G)))
+    assert ref.agg_nonce_coeff_hash(valid, ref.cpoint(positive_key)) == \
+           ref.agg_nonce_coeff_hash(valid, ref.cpoint(negative_key))
+
+    # The public API consumes a 33-byte plain key and validates its encoding
+    # before converting the point to the chosen 32-byte hash representation.
+    for bad_key in (positive_key[:-1], b'\\x04' + positive_key[1:]):
+        try:
+            ref.nonce_agg_ext(valid, ref.PlainPk(bad_key))
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('NonceAggExt accepted a malformed plain public key')
+
     # A zero binding factor must also be rejected by the extension API itself.
     with patch.object(ref, 'agg_nonce_coeff_hash', return_value=0):
         try:
