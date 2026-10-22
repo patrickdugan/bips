@@ -32,7 +32,7 @@ def round1(node: Node, aggpk: XonlyPk = None, msg: bytes = None, extra_in = None
             round1(w, aggpk, msg, extra_in)
         node.out_internal = nonce_agg([w.out for w in node.children])
         if not node.is_root:
-            node.out = nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+            node.out = nonce_agg_ext(node.out_internal, node.pk)
 
 def round2(node: Node, session_ctx: SessionContext):
     if node.is_leaf():
