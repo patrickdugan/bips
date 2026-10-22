@@ -263,9 +263,9 @@ def test_sign_verify():
 
         # The reference must reject malformed lengths even when the leading
         # zero would leave the same integer scalar after parsing.
-        assert not ref.partial_sig_verify(b'\\x00' + expected, signer.out, signer.pk, ctx)
-        assert not ref.partial_sig_verify(expected, signer.out + b'\\x00', signer.pk, ctx)
-        assert not ref.partial_sig_verify(expected, signer.out, b'\\x00' + signer.pk, ctx)
+        assert not ref.partial_sig_verify(b'\x00' + expected, signer.out, signer.pk, ctx)
+        assert not ref.partial_sig_verify(expected, signer.out + b'\x00', signer.pk, ctx)
+        assert not ref.partial_sig_verify(expected, signer.out, b'\x00' + signer.pk, ctx)
 
 
 def test_sig_agg():
