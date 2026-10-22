@@ -83,8 +83,6 @@ def has_even_y(P: Point) -> bool:
     return y(P) % 2 == 0
 
 def schnorr_verify(msg: bytes, pubkey: bytes, sig: bytes) -> bool:
-    if len(msg) != 32:
-        raise ValueError('The message must be a 32-byte array.')
     if len(pubkey) != 32:
         raise ValueError('The public key must be a 32-byte array.')
     if len(sig) != 64:
@@ -320,16 +318,24 @@ def nonce_agg(pubnonces: List[bytes]) -> bytes:
 def agg_nonce_coeff_hash(aggnonce: bytes, aggkey: Point) -> int:
     return int_from_bytes(tagged_hash('NestedMuSig/aggnoncecoef', aggnonce + xbytes(aggkey))) % n
 
-def nonce_agg_ext(nonce_internal: bytes, pk_internal: Point) -> bytes:
+def nonce_agg_ext(aggnonce: bytes, pk_agg: PlainPk) -> bytes:
+    """Return a subgroup's external nonce using the draft's 33-byte key API.
+
+    The binding factor itself retains the author's nonce-first X-only hash:
+    H(aggnonce || xbytes(cpoint(pk_agg))).
+    """
+    if len(pk_agg) != 33:
+        raise ValueError('The aggregate public key must be a 33-byte array.')
+    Q = cpoint(pk_agg)
     try:
-        if len(nonce_internal) != 66:
+        if len(aggnonce) != 66:
             raise ValueError('The aggregate nonce must be a 66-byte array.')
-        R_1_ = cpoint_ext(nonce_internal[0:33])
-        R_2_ = cpoint_ext(nonce_internal[33:66])
+        R_1_ = cpoint_ext(aggnonce[0:33])
+        R_2_ = cpoint_ext(aggnonce[33:66])
     except ValueError:
         # Nonce aggregator sent invalid nonces
         raise InvalidContributionError(None, "aggnonce")
-    b = agg_nonce_coeff_hash(nonce_internal, pk_internal)
+    b = agg_nonce_coeff_hash(aggnonce, Q)
     R_1 = R_1_
     R_2 = point_mul(R_2_, b)
     if is_infinite(R_1) or is_infinite(R_2):
@@ -352,10 +358,7 @@ def apply_tweaks(keyagg_ctx: KeyAggContext, tweaks: List[bytes], is_xonly: List[
         keyagg_ctx = apply_tweak(keyagg_ctx, tweaks[i], is_xonly[i])
     return keyagg_ctx
 
-def print_tree_path(pk_level: List[PlainPk]):
-        print(f"Nodes at level: {[pk.hex().upper() for pk in pk_level]}")
-
-def get_session_values(session_ctx: SessionContext, pk: PlainPk) -> Tuple[Point, int, int, int, Point, int]:
+def get_session_values(session_ctx: SessionContext, pk: PlainPk) -> Tuple[Point, int, int, int, Point, int, int]:
     (nonce_path, pk_tree, tweaks, is_xonly, msg) = session_ctx
     depth = len(pk_tree)
     if depth == 0 or len(nonce_path) != depth:
@@ -400,32 +403,39 @@ def get_session_values(session_ctx: SessionContext, pk: PlainPk) -> Tuple[Point,
 
     for b_ in b_path:
         b = (b * b_) % n
-    e = int_from_bytes(tagged_hash('BIP0340/challenge', xbytes(R) + xbytes(Q) + msg)) % n
+    c = int_from_bytes(tagged_hash('BIP0340/challenge', xbytes(R) + xbytes(Q) + msg)) % n
+    e = c
     for a_ in a_path:
         e = (e * a_) % n
-    return (Q, gacc, tacc, b, R, e)
+    # b is the accumulated nonce-binding coefficient, c the plain BIP340
+    # challenge and e the accumulated challenge coefficient (c times every
+    # key-aggregation coefficient on the signer's path).
+    return (Q, gacc, tacc, b, R, c, e)
 
-def sign(secnonce: bytearray, sk: bytes, session_ctx: SessionContext) -> Tuple[bytes, bytes]:
-    (Q, gacc, _, b, R, e) = get_session_values(session_ctx, individual_pk(sk))
+def sign(secnonce: bytearray, sk: bytes, session_ctx: SessionContext) -> bytes:
+    if len(secnonce) != 97:
+        raise ValueError('The secnonce must be a 97-byte array.')
     k_1_ = int_from_bytes(bytes(secnonce[0:32]))
     k_2_ = int_from_bytes(bytes(secnonce[32:64]))
+    pk_ = bytes(secnonce[64:97])
     # Overwrite the secnonce argument with zeros such that subsequent calls of
-    # sign with the same secnonce raise a ValueError.
+    # sign with the same secnonce raise a ValueError. This happens before any
+    # operation that can fail, so that an attempt that fails (for example on a
+    # malformed Session Context) cannot be retried with the same secret nonce.
     secnonce[:64] = bytearray(b'\x00'*64)
+    if len(sk) != 32:
+        raise ValueError('The secret key must be a 32-byte array.')
     if not 0 < k_1_ < n:
         raise ValueError('first secnonce value is out of range.')
     if not 0 < k_2_ < n:
         raise ValueError('second secnonce value is out of range.')
+    pk = individual_pk(sk)
+    if not pk == pk_:
+        raise ValueError('Public key does not match nonce_gen argument')
+    (Q, gacc, _, b, R, _, e) = get_session_values(session_ctx, pk)
     k_1 = k_1_ if has_even_y(R) else n - k_1_
     k_2 = k_2_ if has_even_y(R) else n - k_2_
     d_ = int_from_bytes(sk)
-    if not 0 < d_ < n:
-        raise ValueError('secret key value is out of range.')
-    P = point_mul(G, d_)
-    assert P is not None
-    pk = cbytes(P)
-    if not pk == secnonce[64:97]:
-        raise ValueError('Public key does not match nonce_gen argument')
     g = 1 if has_even_y(Q) else n - 1
     d = g * gacc * d_ % n
     s = (k_1 + b * k_2 + e * d) % n
@@ -437,10 +447,12 @@ def sign(secnonce: bytearray, sk: bytes, session_ctx: SessionContext) -> Tuple[b
     pubnonce = cbytes(R_s1) + cbytes(R_s2)
     # Optional correctness check. The result of signing should pass signature verification.
     assert partial_sig_verify(psig, pubnonce, pk, session_ctx)
-    return xbytes(R), psig
+    return psig
 
 def partial_sig_verify(psig: bytes, pubnonce: bytes, pk: bytes, session_ctx: SessionContext) -> bool:
-    (Q, gacc, _, b, R, e) = get_session_values(session_ctx, PlainPk(pk))
+    if len(psig) != 32 or len(pubnonce) != 66 or len(pk) != 33:
+        return False
+    (Q, gacc, _, b, R, _, e) = get_session_values(session_ctx, PlainPk(pk))
     s = int_from_bytes(psig)
     if s >= n:
         return False
@@ -453,8 +465,10 @@ def partial_sig_verify(psig: bytes, pubnonce: bytes, pk: bytes, session_ctx: Ses
     g_ = g * gacc % n
     return point_mul(G, s) == point_add(Re_s, point_mul(P, e * g_ % n))
 
-# root_keyagg_ctx is not None only when the root aggregator calls it
-def partial_sig_agg(psigs: List[bytes], x_R: bytes, session_ctx: SessionContext = None, root_keyagg_ctx: KeyAggContext = None) -> bytes:
+# Intermediate (non-root) aggregation: the subgroup's second-round contribution
+# is the scalar sum of its participants' partial signatures. No tweak term is
+# added because intermediate aggregate keys are never tweaked.
+def partial_sig_agg_intermediate(psigs: List[bytes]) -> bytes:
     s = 0
     u = len(psigs)
     for i in range(u):
@@ -464,10 +478,36 @@ def partial_sig_agg(psigs: List[bytes], x_R: bytes, session_ctx: SessionContext 
         if s_i >= n:
             raise InvalidContributionError(i, "psig")
         s = (s + s_i) % n
-    if root_keyagg_ctx is not None and session_ctx is not None:
-        _, _, tweaks, is_xonly, _ = session_ctx
-        Q, _, tacc = apply_tweaks(root_keyagg_ctx, tweaks, is_xonly)
-        g = 1 if has_even_y(Q) else n - 1
-        e = int_from_bytes(tagged_hash('BIP0340/challenge', x_R + xbytes(Q) + session_ctx.msg)) % n
-        s = (s + e * g * tacc) % n
     return bytes_from_int(s)
+
+# The root aggregation node runs the unchanged BIP327 session: pubkeys is the
+# KeySort-ed root participant list L_0, in which a nested subgroup appears as
+# its 33-byte aggregate plain public key, and aggnonce is the root internal
+# aggregate nonce out_0, to which a nested subgroup contributes its external
+# nonce. This is the BIP327 SessionContext.
+RootSessionContext = NamedTuple('RootSessionContext', [('aggnonce', bytes),
+                                                       ('pubkeys', List[PlainPk]),
+                                                       ('tweaks', List[bytes]),
+                                                       ('is_xonly', List[bool]),
+                                                       ('msg', bytes)])
+
+# BIP327 PartialSigAgg, unchanged: derives the root session values from the
+# root session context and returns the 64-byte BIP340 signature.
+def partial_sig_agg_root(psigs: List[bytes], root_ctx: RootSessionContext) -> bytes:
+    (aggnonce, pubkeys, tweaks, is_xonly, msg) = root_ctx
+    Q, _, tacc = apply_tweaks(key_agg(pubkeys), tweaks, is_xonly)
+    b = int_from_bytes(tagged_hash('MuSig/noncecoef', aggnonce + xbytes(Q) + msg)) % n
+    try:
+        R_1 = cpoint_ext(aggnonce[0:33])
+        R_2 = cpoint_ext(aggnonce[33:66])
+    except ValueError:
+        # Nonce aggregator sent invalid nonces
+        raise InvalidContributionError(None, "aggnonce")
+    R_ = point_add(R_1, point_mul(R_2, b))
+    R = R_ if not is_infinite(R_) else G
+    assert R is not None
+    e = int_from_bytes(tagged_hash('BIP0340/challenge', xbytes(R) + xbytes(Q) + msg)) % n
+    s = int_from_bytes(partial_sig_agg_intermediate(psigs))
+    g = 1 if has_even_y(Q) else n - 1
+    s = (s + e * g * tacc) % n
+    return xbytes(R) + bytes_from_int(s)

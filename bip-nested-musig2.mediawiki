@@ -15,7 +15,7 @@ __TOC__
 
 ===Abstract===
 
-This document specifies NestedMuSig2, a recursive variant of [https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki BIP327] MuSig2 based on the construction introduced by [[https://eprint.iacr.org/2026/223|Nested MuSig2]]. NestedMuSig2 permits a participant at a MuSig2 aggregation node to be represented by the aggregate public key of another MuSig2 signing group, thereby forming a tree of nested signing groups.
+This document specifies NestedMuSig2, a recursive variant of [https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki BIP327] MuSig2 based on the construction introduced by [https://eprint.iacr.org/2026/223 Nested MuSig2]. NestedMuSig2 permits a participant at a MuSig2 aggregation node to be represented by the aggregate public key of another MuSig2 signing group, thereby forming a tree of nested signing groups.
 
 The leaf signers in the tree cooperate to produce a single [https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki BIP340]-compatible Schnorr signature under the root aggregate public key. The final signature uses the ordinary 64-byte BIP340 signature encoding and is verified using the ordinary 32-byte BIP340 x-only public-key encoding. Verification requires no knowledge of the internal nesting structure or the leaf signer set.
 
@@ -182,7 +182,7 @@ During the first signing stage, nonce aggregation proceeds recursively from the 
 * A direct leaf signer contributes the 66-byte ''pubnonce'' returned by ''NonceGen''.
 * A nested internal aggregation node contributes the 66-byte external nonce returned by ''NonceAggExt''.
 
-For an aggregation node at level ''d'', let ''L<sub>d</sub> = (pk<sub>1,d</sub>, ..., pk<sub>u,d</sub>)'' be its sorted participant public-key list. Let ''contribution<sub>1..u</sub>'' contain exactly one nonce contribution for each corresponding participant occurrence in ''L<sub>d</sub>''. Implementations MUST retain an unambiguous association between each public-key occurrence and its nonce contribution. This is required even when duplicate public keys occur. The ordering does not affect the group sum computed by ''NonceAgg'', but the association is required for contribution attribution and later partial-signature verification. The node computes ''out<sub>d</sub> = NonceAgg(contribution<sub>1</sub>, ..., contribution<sub>u</sub>)''. The 66-byte value ''out<sub>d</sub>'' is called the node's '''internal aggregate nonce'''. Its two components are aggregate points and therefore use the BIP327 ''cbytes_ext'' representation. For a non-root node, where ''0 < d < &lambda; - 1'', let ''pk<sub>d−1</sub> = GetPlainPubkey(KeyAgg(L<sub>d</sub>))''. The node computes ''extnonce<sub>d</sub> = NonceAggExt(out<sub>d</sub>, pk<sub>d−1</sub>)'' and supplies ''extnonce<sub>d</sub>'' as its nonce contribution to its parent aggregation node at level ''d−1''.
+For an aggregation node at level ''d'', let ''L<sub>d</sub> = (pk<sub>1,d</sub>, ..., pk<sub>u,d</sub>)'' be its sorted participant public-key list. Let ''contribution<sub>1..u</sub>'' contain exactly one nonce contribution for each corresponding participant occurrence in ''L<sub>d</sub>''. Implementations MUST retain an unambiguous association between each public-key occurrence and its nonce contribution. This is required even when duplicate public keys occur. The ordering does not affect the group sum computed by ''NonceAgg'', but the association is required for contribution attribution and later partial-signature verification. The node computes ''out<sub>d</sub> = NonceAgg(contribution<sub>1</sub>, ..., contribution<sub>u</sub>)''. The 66-byte value ''out<sub>d</sub>'' is called the node's '''internal aggregate nonce'''. Its two components are aggregate points and therefore use the BIP327 ''cbytes_ext'' representation. For a non-root node, where ''0 < d ≤ Λ−1'', let ''pk<sub>d−1</sub> = GetPlainPubkey(KeyAgg(L<sub>d</sub>))''. The node computes ''extnonce<sub>d</sub> = NonceAggExt(out<sub>d</sub>, pk<sub>d−1</sub>)'' and supplies ''extnonce<sub>d</sub>'' as its nonce contribution to its parent aggregation node at level ''d−1''.
 
 At the root, ''out<sub>0</sub>'' is retained as the root internal aggregate nonce. No external nonce is required because the root has no parent, and this specification therefore does not invoke ''NonceAggExt'' on ''out<sub>0</sub>''. The root nonce-binding factor is computed according to BIP327: ''b<sub>0</sub> = int(hash<sub>MuSig/noncecoef</sub>(out<sub>0</sub> || xbytes(Q) || m)) mod n'', where ''Q'' is the root aggregate public key after all root-level tweaks have been applied.
 
@@ -285,7 +285,7 @@ Internal Algorithm ''GetSessionValues(session_ctx, pk)'':
 * Let ''b̌ = b<sub>0</sub>·b<sub>1</sub>·...·b<sub>Λ−1</sub> mod n''.
 * Let ''c = int(hash<sub>BIP0340/challenge</sub>(xbytes(R) || xbytes(Q) || m)) mod n''.
 * Let ''č = c·a<sub>0</sub>·a<sub>1</sub>·...·a<sub>Λ−1</sub> mod n''.
-* Return ''(Q, gacc, tacc, b̌, R, č)''.
+* Return ''(Q, gacc, tacc, b̌, R, c, č)''.
 
 For ''Λ = 1'', no intermediate nonce-binding coefficient is computed. The sole key-aggregation happens at level-''0'', whose output is the root aggregate public key at level''−1''. The root aggregate public key itself is not represented in ''cosigner_key_path''. For the same sorted level-''0'' public-key list, root tweak sequence, aggregate nonce, and message, the values ''Q'', ''gacc'', ''tacc'', ''b<sub>0</sub>'', ''R'', and ''c'' are the corresponding BIP327 session values. In this case, ''b̌ = b<sub>0</sub>'' and ''č = c·a<sub>0</sub>''.
 
@@ -411,7 +411,7 @@ No additional NestedMuSig2-specific scalar or tweak term is added during root ag
 
 ==Rationale==
 
-NestedMuSig2 is based on the recursive construction described in [[https://eprint.iacr.org/2026/223|Nested MuSig2]], but this specification must add concrete conventions that are not fixed by the abstract construction in the paper. In particular, this specification uses BIP327 public-key aggregation, secp256k1 point encodings, BIP340 tagged hashes, BIP327 nonce generation and aggregate-key tweaking, and explicit failure behavior.
+NestedMuSig2 is based on the recursive construction described in [https://eprint.iacr.org/2026/223 Nested MuSig2], but this specification must add concrete conventions that are not fixed by the abstract construction in the paper. In particular, this specification uses BIP327 public-key aggregation, secp256k1 point encodings, BIP340 tagged hashes, BIP327 nonce generation and aggregate-key tweaking, and explicit failure behavior.
 
 The following subsections explain the principal design choices.
 
@@ -521,6 +521,8 @@ This specification does not define a new output script descriptor expression for
 
 Wallets, hardware signers, remote signers, and coordinator protocols that understand only BIP327 MUST NOT assume that they can participate internally in a NestedMuSig2 subtree without additional support.
 
+A participant at a root-level position (''Λ = 1'') can, however, run an unmodified BIP327 implementation. For the same KeySort-ed root key list ''L<sub>0</sub>'' (in which a nested subgroup appears as its 33-byte aggregate plain public key), the same root aggregate nonce ''out<sub>0</sub>'' (to which a nested subgroup contributes its external nonce), and the same tweaks and message, BIP327 ''Sign'', ''PartialSigVerify'', and ''PartialSigAgg'' compute exactly the values this specification requires, and a nested subgroup's aggregate partial signature is consumed as an ordinary participant partial signature. Such a participant need not be aware that any cosigner is a nested group. Because this specification sorts participant keys at every aggregation node, an existing BIP327 deployment that aggregates its keys in a different order has a different aggregate key and cannot be extended under this specification without changing that key.
+
 NestedMuSig2-aware software must additionally understand at least:
 * recursive public-key aggregation;
 * the distinction between internal and external aggregate nonces;
@@ -596,7 +598,7 @@ It MUST NOT depend on any NestedMuSig2-specific signing state.
 Running the reference implementation's test suite MUST execute all NestedMuSig2 test-vector suites defined by this specification. Tests that are temporarily disabled during development MUST NOT remain disabled in the version published with the BIP.
 
 The test suite MUST include checks that:
-* unchanged BIP327 primitives continue to satisfy their BIP327 vectors;
+* the BIP327 algorithms reused unchanged satisfy the unmodified BIP327 test vectors, and, for the order-dependent BIP327 signing vectors, the NestedMuSig2 implementation with ''Λ = 1'' agrees with the BIP327 reference implementation on the KeySort-ed key list;
 * NestedMuSig2-specific vectors produce the expected intermediate values;
 * partial signatures verify at both leaf and nested-subgroup boundaries;
 * intermediate aggregate contributions verify using truncated Session Contexts;
@@ -615,7 +617,7 @@ NestedMuSig2 is an interactive multi-signature protocol. Its security depends on
 The Nested MuSig2 paper provides security reductions for variants of the recursive construction under the Algebraic One-More Discrete Logarithm (AOMDL) assumption. The paper gives security results under different modeling assumptions depending on the nonce construction. In particular, the practically relevant compact construction uses two nonce points per signer and is analyzed in the random-oracle model together with the algebraic group model (ROM+AGM). This specification fixes ''ν = 2'' in order to remain compatible with BIP327, whose participant public nonce consists of exactly two elliptic-curve points. Accordingly, the two-nonce NestedMuSig2 construction specified by this BIP corresponds to the paper's compact ROM+AGM security result. It MUST NOT be described as being covered by the paper's ROM-only security theorem without also stating the additional assumptions required for the two-nonce instantiation.
 
 This specification additionally makes concrete interoperability choices not defined by the abstract construction in the paper, including:
-* BIP327 optimized key aggregation;
+* BIP327 optimized key aggregation, including the MuSig2* coefficient of ''1'' for the second distinct key, which the MuSig2 paper analyzes for a single aggregation level only;
 * mandatory ''KeySort'' at each aggregation node;
 * concrete secp256k1 point encodings;
 * concrete tagged-hash domain strings;
@@ -747,7 +749,7 @@ Implementations supporting root tweaks SHOULD include interoperability tests cov
 
 ===Point-at-Infinity Handling===
 
-Exceptional-point behavior MUST be implemented exactly as specified. Internal aggregate nonce components may be the point at infinity and are encoded using BIP327 ''cbytes_ext''. External nonce components, however, are consumed by the parent's BIP327 ''NonceAgg'' as participant nonce points and MUST therefore must not be infinite or ''G''.
+Exceptional-point behavior MUST be implemented exactly as specified. Internal aggregate nonce components may be the point at infinity and are encoded using BIP327 ''cbytes_ext''. External nonce components, however, are consumed by the parent's BIP327 ''NonceAgg'' as participant nonce points and MUST therefore not be infinite or ''G''.
 
 Consequently:
 * ''NonceAggExt'' MUST fail if an external nonce component would be infinity;

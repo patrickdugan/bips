@@ -33,7 +33,7 @@ def check_aggregation_errors(vectors, nonce_mode=False):
                     node.out_internal = ref.nonce_agg([child.out for child in node.children])
                     if not node.is_root:
                         operation = 'nonce_agg_ext'
-                        node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                        node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
         except (ref.InvalidContributionError, ValueError) as error:
             expected = case['error']
             assert (operation, path) == (expected['operation'], expected['node']), f'{case["id"]}: wrong failure location'
@@ -119,7 +119,7 @@ def test_nonce_agg():
             node.pk = ref.PlainPk(ref.cbytes(node.keyagg_ctx.Q))
             node.out_internal = ref.nonce_agg([child.out for child in node.children])
             if not node.is_root:
-                node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
             expected = case['expected'][path]
             assert set(expected) == {'internal_nonce', 'external_nonce'}, f'{case_id}: {path}: incorrect nonce fields'
             for field, actual in [('internal_nonce', node.out_internal), ('external_nonce', node.out)]:
@@ -208,7 +208,7 @@ def test_sign_verify():
             node.pk = ref.PlainPk(ref.cbytes(node.keyagg_ctx.Q))
             node.out_internal = ref.nonce_agg([child.out for child in node.children])
             if not node.is_root:
-                node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
 
         msg_index = case['msg_index']
         assert 0 <= msg_index < len(vectors['msgs']), f'{case_id}: invalid message index'
@@ -232,7 +232,7 @@ def test_sign_verify():
         assert 0 < k1 < ref.n and 0 < k2 < ref.n, f'{case_id}: invalid nonce scalars'
         pubnonce = ref.cbytes(ref.point_mul(ref.G, k1)) + ref.cbytes(ref.point_mul(ref.G, k2))
         assert pubnonce == signer.out, f'{case_id}: secret/public nonce mismatch'
-        _, psig = ref.sign(secnonce, sk, ctx)
+        psig = ref.sign(secnonce, sk, ctx)
         expected = bytes.fromhex(case['expected'])
         assert psig == expected, (
             f'{case_id}: {signer_path}: partial signature mismatch\n'
@@ -240,6 +240,32 @@ def test_sign_verify():
             f'  actual:   {psig.hex().upper()}'
         )
         assert ref.partial_sig_verify(expected, signer.out, signer.pk, ctx), f'{case_id}: partial verification failed'
+
+        # A malformed public session cannot leave secret nonce scalars reusable.
+        # In particular, GetSessionValues must run *after* Sign consumes them.
+        failed_nonce = bytearray.fromhex(vectors['secnonces'][secnonce_index])
+        malformed_ctx = ref.SessionContext(
+            ctx.nonce_path[:-1], ctx.pk_tree, ctx.tweaks, ctx.is_xonly, ctx.msg)
+        try:
+            ref.sign(failed_nonce, sk, malformed_ctx)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f'{case_id}: malformed session accepted')
+        assert failed_nonce[:64] == bytes(64), f'{case_id}: failed Sign retained nonce scalars'
+        assert failed_nonce[64:] == signer.pk, f'{case_id}: secret nonce public-key binding changed'
+        try:
+            ref.sign(failed_nonce, sk, ctx)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f'{case_id}: failed Sign allowed secret nonce reuse')
+
+        # The reference must reject malformed lengths even when the leading
+        # zero would leave the same integer scalar after parsing.
+        assert not ref.partial_sig_verify(b'\x00' + expected, signer.out, signer.pk, ctx)
+        assert not ref.partial_sig_verify(expected, signer.out + b'\x00', signer.pk, ctx)
+        assert not ref.partial_sig_verify(expected, signer.out, b'\x00' + signer.pk, ctx)
 
 
 def test_sig_agg():
@@ -260,7 +286,7 @@ def test_sig_agg():
                     node.pk = ref.PlainPk(ref.cbytes(node.keyagg_ctx.Q))
                     node.out_internal = ref.nonce_agg([child.out for child in node.children])
                     if not node.is_root:
-                        node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                        node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
             tweaks = [bytes.fromhex(t) for t in case['tweaks']]
             msg = bytes.fromhex(vectors['msgs'][case['msg_index']])
             contexts = {'root': ref.SessionContext([], [], tweaks, case['is_xonly'], msg)}
@@ -271,8 +297,10 @@ def test_sig_agg():
                         ctx.nonce_path + [node.out_internal],
                         ctx.pk_tree + [[sibling.pk for j, sibling in enumerate(node.children) if i != j]],
                         tweaks, case['is_xonly'], msg)
-            first_leaf = next(path for path, node in nodes.items() if node.is_leaf())
-            rx = ref.xbytes(ref.get_session_values(contexts[first_leaf], nodes[first_leaf].pk)[4])
+            root = nodes['root']
+            # The root aggregator runs the unchanged BIP327 session over L_0 and out_0.
+            root_ctx = ref.RootSessionContext(root.out_internal, ref.key_sort([child.pk for child in root.children]),
+                                              tweaks, case['is_xonly'], msg)
             psigs = {path: bytes.fromhex(vectors['psigs'][index]) for path, index in case['psig_indices'].items()}
             if group == 'error_test_cases':
                 error = case['error']
@@ -282,9 +310,9 @@ def test_sig_agg():
                 inputs = [psigs[p] for p in children]
                 try:
                     if node.is_root:
-                        ref.partial_sig_agg(inputs, rx, contexts[path], node.keyagg_ctx)
+                        ref.partial_sig_agg_root(inputs, root_ctx)
                     else:
-                        ref.partial_sig_agg(inputs, rx)
+                        ref.partial_sig_agg_intermediate(inputs)
                 except ref.InvalidContributionError as actual:
                     assert error['type'] == 'invalid_contribution'
                     assert (actual.signer, actual.contrib) == (error['signer'], error['contrib']), case['id']
@@ -307,15 +335,13 @@ def test_sig_agg():
                     node.out_ = psigs[path]
                     continue
                 inputs = [child.out_ for child in node.children]
-                node.out_ = ref.partial_sig_agg(inputs, rx, contexts[path], node.keyagg_ctx) if node.is_root else ref.partial_sig_agg(inputs, rx)
+                node.out_ = ref.partial_sig_agg_root(inputs, root_ctx) if node.is_root else ref.partial_sig_agg_intermediate(inputs)
                 if group == 'valid_test_cases':
-                    actual = rx + node.out_ if node.is_root else node.out_
-                    assert actual == bytes.fromhex(case['expected'][path]), f'{case["id"]}: {path}: incorrect aggregation'
+                    assert node.out_ == bytes.fromhex(case['expected'][path]), f'{case["id"]}: {path}: incorrect aggregation'
                     if not node.is_root:
                         assert node.out_ == psigs[path], f'{case["id"]}: {path}: inconsistent pooled subgroup signature'
-            root = nodes['root']
             key = ref.get_xonly_pk(ref.apply_tweaks(root.keyagg_ctx, tweaks, case['is_xonly']))
-            valid = ref.schnorr_verify(msg, key, rx + root.out_)
+            valid = ref.schnorr_verify(msg, key, root.out_)
             if group == 'valid_test_cases':
                 assert valid is True, f'{case["id"]}: valid aggregate signature failed BIP340 verification'
             else:
@@ -359,10 +385,27 @@ def test_session_nonce_validation():
         with patch.object(ref, 'agg_nonce_coeff_hash', side_effect=lambda nonce, key: 0 if nonce == marked else 1):
             check_failure(nonces, level)
 
+    # The author chose the BIP327-style X-only nonce-binding input. Keys with
+    # opposite parity must therefore produce the same intermediate factor.
+    positive_key = ref.PlainPk(ref.cbytes(ref.G))
+    negative_key = ref.PlainPk(ref.cbytes(ref.point_negate(ref.G)))
+    assert ref.agg_nonce_coeff_hash(valid, ref.cpoint(positive_key)) == \
+           ref.agg_nonce_coeff_hash(valid, ref.cpoint(negative_key))
+
+    # The public API consumes a 33-byte plain key and validates its encoding
+    # before converting the point to the chosen 32-byte hash representation.
+    for bad_key in (positive_key[:-1], b'\x04' + positive_key[1:]):
+        try:
+            ref.nonce_agg_ext(valid, ref.PlainPk(bad_key))
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('NonceAggExt accepted a malformed plain public key')
+
     # A zero binding factor must also be rejected by the extension API itself.
     with patch.object(ref, 'agg_nonce_coeff_hash', return_value=0):
         try:
-            ref.nonce_agg_ext(valid, ref.G)
+            ref.nonce_agg_ext(valid, ref.PlainPk(ref.cbytes(ref.G)))
         except ref.InvalidContributionError as error:
             assert (error.signer, error.contrib) == (None, 'aggnonce')
         else:
