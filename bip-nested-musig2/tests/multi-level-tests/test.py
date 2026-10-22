@@ -394,7 +394,7 @@ def test_session_nonce_validation():
 
     # The public API consumes a 33-byte plain key and validates its encoding
     # before converting the point to the chosen 32-byte hash representation.
-    for bad_key in (positive_key[:-1], b'\\x04' + positive_key[1:]):
+    for bad_key in (positive_key[:-1], b'\x04' + positive_key[1:]):
         try:
             ref.nonce_agg_ext(valid, ref.PlainPk(bad_key))
         except ValueError:
