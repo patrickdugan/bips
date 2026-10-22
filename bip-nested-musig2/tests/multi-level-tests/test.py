@@ -33,7 +33,7 @@ def check_aggregation_errors(vectors, nonce_mode=False):
                     node.out_internal = ref.nonce_agg([child.out for child in node.children])
                     if not node.is_root:
                         operation = 'nonce_agg_ext'
-                        node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                        node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
         except (ref.InvalidContributionError, ValueError) as error:
             expected = case['error']
             assert (operation, path) == (expected['operation'], expected['node']), f'{case["id"]}: wrong failure location'
@@ -119,7 +119,7 @@ def test_nonce_agg():
             node.pk = ref.PlainPk(ref.cbytes(node.keyagg_ctx.Q))
             node.out_internal = ref.nonce_agg([child.out for child in node.children])
             if not node.is_root:
-                node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
             expected = case['expected'][path]
             assert set(expected) == {'internal_nonce', 'external_nonce'}, f'{case_id}: {path}: incorrect nonce fields'
             for field, actual in [('internal_nonce', node.out_internal), ('external_nonce', node.out)]:
@@ -208,7 +208,7 @@ def test_sign_verify():
             node.pk = ref.PlainPk(ref.cbytes(node.keyagg_ctx.Q))
             node.out_internal = ref.nonce_agg([child.out for child in node.children])
             if not node.is_root:
-                node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
 
         msg_index = case['msg_index']
         assert 0 <= msg_index < len(vectors['msgs']), f'{case_id}: invalid message index'
@@ -286,7 +286,7 @@ def test_sig_agg():
                     node.pk = ref.PlainPk(ref.cbytes(node.keyagg_ctx.Q))
                     node.out_internal = ref.nonce_agg([child.out for child in node.children])
                     if not node.is_root:
-                        node.out = ref.nonce_agg_ext(node.out_internal, node.keyagg_ctx.Q)
+                        node.out = ref.nonce_agg_ext(node.out_internal, node.pk)
             tweaks = [bytes.fromhex(t) for t in case['tweaks']]
             msg = bytes.fromhex(vectors['msgs'][case['msg_index']])
             contexts = {'root': ref.SessionContext([], [], tweaks, case['is_xonly'], msg)}
@@ -388,7 +388,7 @@ def test_session_nonce_validation():
     # A zero binding factor must also be rejected by the extension API itself.
     with patch.object(ref, 'agg_nonce_coeff_hash', return_value=0):
         try:
-            ref.nonce_agg_ext(valid, ref.G)
+            ref.nonce_agg_ext(valid, ref.PlainPk(ref.cbytes(ref.G)))
         except ref.InvalidContributionError as error:
             assert (error.signer, error.contrib) == (None, 'aggnonce')
         else:
